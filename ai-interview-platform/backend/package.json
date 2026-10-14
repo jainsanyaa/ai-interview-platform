@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "dev": "node --watch server.js",
+    "dev": "node --watch-path=server.js --watch-path=routes --watch-path=services --watch-path=session server.js",
     "start": "node server.js"
   },
   "dependencies": {

@@ -1,3 +1,6 @@
+import { useEffect, useMemo, useState } from "react";
+import { generateInterviewQuestions } from "../api/client.js";
+
 const CATEGORY_LABELS = {
   skillsMatch: "Skills match",
   keywordOptimization: "Keyword optimization",
@@ -23,7 +26,7 @@ function ScoreBar({ label, value }) {
   );
 }
 
-export default function AtsScoreCard({ resumeData, onReset }) {
+export default function AtsScoreCard({ resumeData, sessionId, onReset }) {
   const {
     atsScore,
     atsBreakdown,
@@ -33,6 +36,73 @@ export default function AtsScoreCard({ resumeData, onReset }) {
     parsedJson,
     atsScoringFailed
   } = resumeData;
+  const [questions, setQuestions] = useState([]);
+  const [questionsError, setQuestionsError] = useState("");
+  const [interviewStarted, setInterviewStarted] = useState(false);
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+  const [timeRemaining, setTimeRemaining] = useState(20 * 60);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadQuestions() {
+      if (!sessionId) return;
+      try {
+        const nextQuestions = await generateInterviewQuestions(sessionId);
+        if (isMounted) setQuestions(nextQuestions);
+      } catch (err) {
+        if (isMounted) {
+          setQuestionsError(err.message || "Unable to generate interview questions right now.");
+        }
+      }
+    }
+
+    loadQuestions();
+    return () => {
+      isMounted = false;
+    };
+  }, [sessionId]);
+
+  useEffect(() => {
+    if (!interviewStarted) return;
+
+    const intervalId = setInterval(() => {
+      setTimeRemaining((prev) => {
+        if (prev <= 1) {
+          clearInterval(intervalId);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(intervalId);
+  }, [interviewStarted, currentQuestionIndex]);
+
+  const currentQuestion = questions[currentQuestionIndex] || null;
+
+  const timeLabel = useMemo(() => {
+    const minutes = Math.floor(timeRemaining / 60)
+      .toString()
+      .padStart(2, "0");
+    const seconds = (timeRemaining % 60).toString().padStart(2, "0");
+    return `${minutes}:${seconds}`;
+  }, [timeRemaining]);
+
+  function startInterview() {
+    setCurrentQuestionIndex(0);
+    setTimeRemaining(20 * 60);
+    setInterviewStarted(true);
+  }
+
+  function handleNextQuestion() {
+    if (currentQuestionIndex >= questions.length - 1) {
+      setInterviewStarted(false);
+      setCurrentQuestionIndex(0);
+      return;
+    }
+    setCurrentQuestionIndex((prev) => prev + 1);
+  }
 
   return (
     <div className="max-w-2xl mx-auto">
@@ -100,7 +170,7 @@ export default function AtsScoreCard({ resumeData, onReset }) {
         </>
       )}
 
-      <div className="border border-line rounded-sm p-4 bg-white/50">
+      <div className="border border-line rounded-sm p-4 bg-white/50 mb-6">
         <h3 className="font-mono text-xs uppercase tracking-widest text-slate mb-3">
           Extracted resume data
         </h3>
@@ -124,6 +194,56 @@ export default function AtsScoreCard({ resumeData, onReset }) {
             </p>
           )}
         </div>
+      </div>
+
+      <div className="border border-line rounded-sm p-4 bg-white/50">
+        <h3 className="font-mono text-xs uppercase tracking-widest text-slate mb-3">
+          AI HR interview
+        </h3>
+
+        {questionsError ? (
+          <p className="font-body text-sm text-rust">{questionsError}</p>
+        ) : questions.length > 0 ? (
+          <>
+            <div className="mb-4 flex items-center justify-between gap-3 rounded-sm border border-line bg-paper p-3">
+              <span className="font-mono text-xs uppercase tracking-widest text-slate">
+                {interviewStarted
+                  ? `Question ${Math.min(currentQuestionIndex + 1, questions.length)} of ${questions.length}`
+                  : `${questions.length} questions prepared`}
+              </span>
+              <span className="font-display text-lg text-ink">{timeLabel}</span>
+            </div>
+
+            {interviewStarted && currentQuestion ? (
+              <div className="space-y-4">
+                <p className="font-mono text-xs uppercase tracking-widest text-rust">HR interview</p>
+                <p className="font-body text-lg text-ink leading-relaxed">{currentQuestion}</p>
+                <div className="flex gap-3">
+                  <button
+                    onClick={handleNextQuestion}
+                    className="bg-ink text-paper font-display text-sm px-4 py-2 rounded-sm hover:bg-rust transition-colors"
+                  >
+                    {currentQuestionIndex >= questions.length - 1 ? "Finish interview" : "Next question"}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <p className="font-body text-sm text-ink">
+                  A 20-minute mock interview will ask you one question at a time, based on your resume and experience.
+                </p>
+                <button
+                  onClick={startInterview}
+                  className="bg-ink text-paper font-display text-sm px-4 py-2 rounded-sm hover:bg-rust transition-colors"
+                >
+                  Start 20-minute interview
+                </button>
+              </div>
+            )}
+          </>
+        ) : (
+          <p className="font-body text-sm text-slate">Generating questions from your resume…</p>
+        )}
       </div>
     </div>
   );

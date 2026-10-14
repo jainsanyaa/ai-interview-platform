@@ -1,0 +1,10 @@
+{
+  "name": "ai-interview-platform-root",
+  "version": "1.0.0",
+  "description": "AI Interview Platform - Run frontend and backend together",
+  "type": "module",
+  "scripts": {
+    "start": "node run.js",
+    "dev": "node run.js"
+  }
+}
