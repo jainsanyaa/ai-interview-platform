@@ -28,6 +28,33 @@ app.get("/health", (req, res) => res.json({ status: "ok" }));
 app.use("/api/resume", resumeRoutes);
 app.use("/resume", resumeRoutes);
 
+// Serve frontend static build on the same port (Unified single URL)
+import path from "path";
+import fs from "fs";
+import { fileURLToPath } from "url";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+const possibleDistPaths = [
+  path.join(__dirname, "../frontend/dist"),
+  path.join(__dirname, "../../frontend/dist"),
+  path.join(process.cwd(), "ai-interview-platform/frontend/dist"),
+  path.join(process.cwd(), "frontend/dist")
+];
+
+const distPath = possibleDistPaths.find((p) => fs.existsSync(path.join(p, "index.html")));
+
+if (distPath) {
+  app.use(express.static(distPath));
+  app.get("*", (req, res, next) => {
+    if (req.path.startsWith("/api") || req.path.startsWith("/resume")) {
+      return next();
+    }
+    res.sendFile(path.join(distPath, "index.html"));
+  });
+}
+
 // Fallback error handler
 app.use((err, req, res, next) => {
   console.error(err);
