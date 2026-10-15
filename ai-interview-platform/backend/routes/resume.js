@@ -254,7 +254,12 @@ router.post("/match-jd", async (req, res) => {
       return res.status(400).json({ error: "INVALID_JD", message: "Please provide a valid job description." });
     }
 
-    const session = getSession(sessionId);
+    let session = getSession(sessionId);
+    if (!session && req.body.resumeData) {
+      session = getOrCreateSession(sessionId);
+      session.resumeData = req.body.resumeData;
+    }
+
     if (!session || !session.resumeData) {
       return res.status(404).json({ error: "SESSION_NOT_FOUND" });
     }
@@ -285,7 +290,11 @@ router.post("/questions", async (req, res) => {
       return res.status(400).json({ error: "SESSION_ID_REQUIRED" });
     }
 
-    const session = getSession(sessionId);
+    let session = getSession(sessionId);
+    if (!session && req.body.resumeData) {
+      session = getOrCreateSession(sessionId);
+      session.resumeData = req.body.resumeData;
+    }
     if (!session || !session.resumeData) {
       return res.status(404).json({ error: "SESSION_NOT_FOUND" });
     }
@@ -314,14 +323,15 @@ router.post("/questions", async (req, res) => {
 // Analyzes candidate's spoken/typed answer in real-time
 router.post("/analyze-answer", async (req, res) => {
   try {
-    const { sessionId, questionId, questionText, answerText, timeSpentSeconds } = req.body || {};
+    const { sessionId, questionId, questionText, answerText, timeSpentSeconds, resumeData } = req.body || {};
     if (!sessionId || !questionText || !answerText) {
       return res.status(400).json({ error: "MISSING_FIELDS", message: "sessionId, questionText, and answerText are required." });
     }
 
-    const session = getSession(sessionId);
+    let session = getSession(sessionId);
     if (!session) {
-      return res.status(404).json({ error: "SESSION_NOT_FOUND" });
+      session = getOrCreateSession(sessionId);
+      if (resumeData) session.resumeData = resumeData;
     }
 
     const targetRole = session.resumeData?.targetRole || null;
@@ -363,14 +373,16 @@ router.post("/analyze-answer", async (req, res) => {
 // Completes mock interview and generates comprehensive final evaluation report
 router.post("/complete-interview", async (req, res) => {
   try {
-    const { sessionId } = req.body || {};
+    const { sessionId, resumeData, answers } = req.body || {};
     if (!sessionId) {
       return res.status(400).json({ error: "SESSION_ID_REQUIRED" });
     }
 
-    const session = getSession(sessionId);
+    let session = getSession(sessionId);
     if (!session) {
-      return res.status(404).json({ error: "SESSION_NOT_FOUND" });
+      session = getOrCreateSession(sessionId);
+      if (resumeData) session.resumeData = resumeData;
+      if (Array.isArray(answers)) session.interview.answers = answers;
     }
 
     session.interview.status = "completed";

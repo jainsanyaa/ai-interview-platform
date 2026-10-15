@@ -5,6 +5,16 @@
   "type": "module",
   "scripts": {
     "start": "node run.js",
-    "dev": "node run.js"
+    "dev": "node run.js",
+    "build": "cd frontend && npm install && npm run build"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.1",
+    "mammoth": "^1.8.0",
+    "multer": "^2.0.1",
+    "pdfjs-dist": "^6.2.108",
+    "uuid": "^9.0.1"
   }
 }

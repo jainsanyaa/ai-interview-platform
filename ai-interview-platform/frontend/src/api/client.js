@@ -102,7 +102,11 @@ async function matchJobDescription(sessionId, jobDescription) {
   const res = await fetch("/api/resume/match-jd", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ sessionId, jobDescription })
+    body: JSON.stringify({
+      sessionId,
+      jobDescription,
+      resumeData: getCachedResumeData()
+    })
   });
 
   const data = await res.json();
@@ -122,18 +126,46 @@ async function fetchResumeForSession(sessionId) {
   }
 
   const request = (async () => {
-    const res = await fetch(`/api/resume/${sessionId}`);
+    try {
+      const res = await fetch(`/api/resume/${sessionId}`);
 
-    if (res.status === 404) {
-      clearSession();
-      return null;
+      if (res.status === 404) {
+        const cached = getCachedResumeData();
+        if (cached) {
+          return {
+            sessionId,
+            resumeData: cached,
+            interview: { status: "not_started", questions: [], answers: [] }
+          };
+        }
+        clearSession();
+        return null;
+      }
+
+      if (!res.ok) {
+        const cached = getCachedResumeData();
+        return cached
+          ? {
+              sessionId,
+              resumeData: cached,
+              interview: { status: "not_started", questions: [], answers: [] }
+            }
+          : null;
+      }
+
+      const data = await res.json();
+      setCachedResumeData(data.resumeData);
+      return data;
+    } catch (e) {
+      const cached = getCachedResumeData();
+      return cached
+        ? {
+            sessionId,
+            resumeData: cached,
+            interview: { status: "not_started", questions: [], answers: [] }
+          }
+        : null;
     }
-
-    if (!res.ok) return null;
-
-    const data = await res.json();
-    setCachedResumeData(data.resumeData);
-    return data;
   })();
 
   inFlightSessionFetches.set(sessionId, request);
@@ -150,7 +182,11 @@ async function generateInterviewQuestions(sessionId, jobDescription = null) {
   const res = await fetch("/api/resume/questions", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ sessionId, jobDescription })
+    body: JSON.stringify({
+      sessionId,
+      jobDescription,
+      resumeData: getCachedResumeData()
+    })
   });
 
   if (!res.ok) {
@@ -173,7 +209,8 @@ async function analyzeAnswer(sessionId, questionId, questionText, answerText, ti
       questionId,
       questionText,
       answerText,
-      timeSpentSeconds
+      timeSpentSeconds,
+      resumeData: getCachedResumeData()
     })
   });
 
@@ -190,7 +227,10 @@ async function completeInterview(sessionId) {
   const res = await fetch("/api/resume/complete-interview", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ sessionId })
+    body: JSON.stringify({
+      sessionId,
+      resumeData: getCachedResumeData()
+    })
   });
 
   const data = await res.json();

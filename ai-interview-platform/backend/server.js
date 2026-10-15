@@ -12,12 +12,21 @@ if (!process.env.GROQ_API_KEY) {
   );
 }
 
-app.use(cors({ origin: process.env.FRONTEND_ORIGIN || "http://localhost:5173" }));
-app.use(express.json());
+app.use(
+  cors({
+    origin: (origin, callback) => callback(null, true),
+    credentials: true
+  })
+);
+app.use(express.json({ limit: "10mb" }));
 
+// Health checks
 app.get("/api/health", (req, res) => res.json({ status: "ok" }));
+app.get("/health", (req, res) => res.json({ status: "ok" }));
 
+// Route handlers
 app.use("/api/resume", resumeRoutes);
+app.use("/resume", resumeRoutes);
 
 // Fallback error handler
 app.use((err, req, res, next) => {
@@ -25,6 +34,10 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: "INTERNAL_ERROR", message: "Unexpected server error." });
 });
 
-app.listen(PORT, () => {
-  console.log(`AI Interview backend running on http://localhost:${PORT}`);
-});
+if (!process.env.VERCEL) {
+  app.listen(PORT, () => {
+    console.log(`AI Interview backend running on http://localhost:${PORT}`);
+  });
+}
+
+export default app;
