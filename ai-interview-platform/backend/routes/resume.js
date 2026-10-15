@@ -45,7 +45,7 @@ function buildFallbackParsedJson(rawText) {
 // Multer: memory storage only — file buffer is never written to disk.
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
+  limits: { fileSize: 4.5 * 1024 * 1024 }, // 4.5MB (Vercel payload safe)
   fileFilter: (req, file, cb) => {
     const allowed = [
       "application/pdf",
@@ -235,9 +235,15 @@ router.post("/upload", upload.single("resume"), async (req, res) => {
     });
   } catch (err) {
     console.error("Unhandled error in /resume/upload:", err);
+    if (err.message === "MISSING_GROQ_API_KEY") {
+      return res.status(500).json({
+        error: "MISSING_GROQ_API_KEY",
+        message: "GROQ_API_KEY is missing. Please add GROQ_API_KEY to your Vercel Environment Variables."
+      });
+    }
     return res.status(500).json({
       error: "INTERNAL_ERROR",
-      message: "Something went wrong processing your resume. Please try again."
+      message: err.message || "Something went wrong processing your resume. Please try again."
     });
   }
 });
@@ -436,7 +442,7 @@ router.get("/:sessionId", (req, res) => {
 router.use((err, req, res, next) => {
   if (err instanceof multer.MulterError) {
     if (err.code === "LIMIT_FILE_SIZE") {
-      return res.status(413).json({ error: "FILE_TOO_LARGE", message: "Resume must be under 5MB." });
+      return res.status(413).json({ error: "FILE_TOO_LARGE", message: "Resume must be under 4.5MB." });
     }
     return res.status(400).json({ error: "UPLOAD_ERROR", message: err.message });
   }

@@ -45,8 +45,8 @@ export default function UploadResume({ onAnalyzed, initialRole = "", initialJd =
       setErrorMessage("Only PDF and DOCX files are supported.");
       return;
     }
-    if (candidate.size > 5 * 1024 * 1024) {
-      setErrorMessage("File is too large. Max size is 5MB.");
+    if (candidate.size > 4.5 * 1024 * 1024) {
+      setErrorMessage("File is too large. Max size is 4.5MB.");
       return;
     }
     setFile(candidate);
